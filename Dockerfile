@@ -1,25 +1,23 @@
-FROM ubuntu:22.04 as base
-ARG TARGETPLATFORM
-COPY . /tmp
-WORKDIR /tmp
+FROM rust:1.79.0 as base
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libssl-dev \
+    pkg-config \
+    curl \
+    libsoxr-dev \
+    libsoxr0 \
+    cmake
+WORKDIR /app
+COPY . .
 
-RUN echo $TARGETPLATFORM
-RUN ls -R /tmp/
-# move the binary to root based on platform
-RUN case $TARGETPLATFORM in \
-        "linux/amd64")  BUILD=x86_64-unknown-linux-gnu  ;; \
-        "linux/arm64")  BUILD=aarch64-unknown-linux-gnu  ;; \
-        *) exit 1 ;; \
-    esac; \
-    mv /tmp/$BUILD/atm0s-media-server-$BUILD /atm0s-media-server; \
-    chmod +x /atm0s-media-server
+RUN cargo build --release
 
 FROM ubuntu:22.04
 
 # install wget & curl
-RUN apt update && apt install -y wget curl && apt clean && rm -rf /var/lib/apt/lists/*
+RUN apt update && apt install -y wget curl libsoxr0 && apt clean && rm -rf /var/lib/apt/lists/*
 
 COPY maxminddb-data /maxminddb-data
-COPY --from=base /atm0s-media-server /atm0s-media-server
+COPY --from=base /app/target/release/atm0s-media-server /atm0s-media-server
 
 ENTRYPOINT ["/atm0s-media-server"]

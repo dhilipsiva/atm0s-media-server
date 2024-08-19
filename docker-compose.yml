@@ -46,6 +46,7 @@ services:
     entrypoint: ["/entrypoints/connector.sh"]
 
   traefik:
+    network_mode: host
     image: traefik:v2.11
     restart: always
     volumes:

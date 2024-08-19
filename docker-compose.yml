@@ -9,15 +9,15 @@ x-common-variables: &common-variables
     RUST_LOG: debug
 
 services:
-  console:
-    <<: *common-variables
-    entrypoint: ["/entrypoints/console.sh"]
+  # console:
+  #   <<: *common-variables
+  #   entrypoint: ["/entrypoints/console.sh"]
 
   gateway:
     <<: *common-variables
     depends_on:
       - console
-    entrypoint: ["/entrypoints/gateway.sh"]
+    entrypoint: ["/entrypoints/gateway_secret.sh"]
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.gateway.rule=Host(`demo-cluster.8xff.colligence.in`)"

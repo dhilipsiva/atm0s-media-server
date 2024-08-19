@@ -1,108 +1,59 @@
 version: '3.8'
 
-services:
+x-common-variables: &common-variables
+  network_mode: host
+  build:
+    context: .
+    dockerfile: Dockerfile
+  environment:
+    RUST_LOG: debug
 
+services:
   console:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      RUST_LOG: debug
-    ports:
-      - "8080:8080"
-    command: [
-      "--enable-private-ip",
-      "--http-port", "8080", 
-      "--sdn-port", "10000",
-      "--sdn-zone-id", "0",
-      "--sdn-zone-node-id", "0",
-      "--workers", "2",
-      "console"
-      ]
-      
+    <<: *common-variables
+    entrypoint: ["/entrypoints/console.sh"]
+
   gateway:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      RUST_LOG: debug
-    ports:
-      - "3000:3000"
+    <<: *common-variables
     depends_on:
       - console
-    command: [
-      "--enable-private-ip",
-      "--http-port", "3000",
-      "--sdn-port", "10001",
-      "--sdn-zone-id", "0",
-      "--sdn-zone-node-id", "1",
-      "--seeds", "0@/ip4/127.0.0.1/udp/10000",
-      "--workers", "2",
-      "gateway",
-      "--lat 10",
-      "--lon 20",
-      "--max-memory", "100",
-      "--max-disk", "100",
-      "--geo-db", "../maxminddb-data/GeoLite2-City.mmdb"
-      ]
+    entrypoint: ["/entrypoints/gateway.sh"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gateway.rule=Host(`demo-cluster.8xff.colligence.in`)"
+      - "traefik.http.routers.gateway.service=gateway"
+      - "traefik.http.routers.gateway.entrypoints=websecure"
+      - "traefik.http.routers.gateway.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.gateway.tls.domains[0].main=atm0s.ds.colligence.in"
+      - "traefik.http.services.gateway.loadbalancer.server.port=3000"
 
   media_n2:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      RUST_LOG: debug
-    # ports:
-      # - "8080:8080"
+    <<: *common-variables
     depends_on:
-      - console
-
-    command: [
-      "--enable-private-ip",
-      "--sdn-zone-id", "0",
-      "--sdn-zone-node-id", "2",
-      "--seeds", "1@/ip4/127.0.0.1/udp/10000",
-      "--workers", "2",
-      "media",
-      "--enable-token-api",
-      ]
+      - gateway
+    entrypoint: ["/entrypoints/media.sh", "2"]
 
   media_n3:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      RUST_LOG: debug
-    # ports:
-      # - "8080:8080"
+    <<: *common-variables
     depends_on:
-      - console
-    command: [
-      "--enable-private-ip",
-      "--sdn-zone-id", "0",
-      "--sdn-zone-node-id", "3",
-      "--seeds", "1@/ip4/127.0.0.1/udp/10000",
-      "--workers", "2",
-      "media",
-      "--enable-token-api",
-      ]
+      - gateway
+    entrypoint: ["/entrypoints/media.sh", "3"]
 
   connector:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      RUST_LOG: debug
-    # ports:
-      # - "8080:8080"
+    <<: *common-variables
     depends_on:
-      - console
-    command: [
-      "--enable-private-ip",
-      "--sdn-zone-id", "0",
-      "--sdn-zone-node-id", "1",
-      "--seeds", "1@/ip4/127.0.0.1/udp/10000",
-      "--workers", "2",
-      "connector",
-      "--s3-uri", "http://minioadmin:minioadmin@127.0.0.1:9000/record"
-      ]
+      - gateway
+    entrypoint: ["/entrypoints/connector.sh"]
+
+  traefik:
+    image: traefik:v2.11
+    restart: always
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/root/traefik.toml:/etc/traefik/traefik.toml"
+      - "/root/acme.json:/acme.json"
+    labels:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"

@@ -4,7 +4,7 @@ x-common-variables: &common-variables
   network_mode: host
   build:
     context: .
-    dockerfile: Dockerfile
+    dockerfile: ghcr.dockerfile
   environment:
     RUST_LOG: debug
 

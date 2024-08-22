@@ -1,5 +1,3 @@
-version: '3.8'
-
 x-common-variables: &common-variables
   network_mode: host
   build:
@@ -9,15 +7,15 @@ x-common-variables: &common-variables
     RUST_LOG: debug
 
 services:
-  # console:
-  #   <<: *common-variables
-  #   entrypoint: ["/entrypoints/console.sh"]
+  console:
+    <<: *common-variables
+    entrypoint: ["/entrypoints/console.sh"]
 
   gateway:
     <<: *common-variables
     depends_on:
       - console
-    entrypoint: ["/entrypoints/gateway_secret.sh"]
+    entrypoint: ["/entrypoints/gateway.sh"]
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.gateway.rule=Host(`demo-cluster.8xff.colligence.in`)"
